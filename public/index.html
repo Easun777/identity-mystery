@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>身份谜局 - 卡牌推理桌游</title>
+<style>
+:root {
+  --bg: #1a3a1a;
+  --table: #2d5a27;
+  --card-bg: #f5f0e8;
+  --card-border: #8b7355;
+  --accent: #c9a96e;
+  --danger: #c0392b;
+  --info: #2980b9;
+  --text: #2c2c2c;
+  --light-text: #f0e6d3;
+  --shadow: 0 4px 12px rgba(0,0,0,0.3);
+  --player-bg: rgba(0,0,0,0.35);
+  --highlight: #f39c12;
+  --success: #27ae60;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--light-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: radial-gradient(ellipse at center, #2d5a27 0%, #1a3a1a 70%);
+}
+
+/* ===== SETUP SCREEN ===== */
+#setup-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 20px;
+}
+#setup-screen h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  color: var(--accent);
+  text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+  margin-bottom: 8px;
+  letter-spacing: 4px;
+}
+#setup-screen .subtitle {
+  color: #b8956a;
+  font-size: 1.1rem;
+  margin-bottom: 40px;
+}
+.setup-card {
+  background: var(--player-bg);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 32px 40px;
+  max-width: 480px;
+  width: 90%;
+  backdrop-filter: blur(8px);
+}
+.setup-card label {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+.setup-card select, .setup-card button {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 2px solid var(--accent);
+  background: rgba(0,0,0,0.3);
+  color: var(--light-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.setup-card select { margin-bottom: 24px; }
+.setup-card select option { background: #2d5a27; color: var(--light-text); }
+.setup-card button {
+  background: var(--accent);
+  color: #1a3a1a;
+  font-weight: bold;
+  font-size: 1.15rem;
+  letter-spacing: 2px;
+  border: none;
+}
+.setup-card button:hover { background: #d4b87a; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201,169,110,0.4); }
+.setup-card .rules-summary {
+  margin-top: 20px;
+  font-size: 0.85rem;
+  color: #9a8c7a;
+  line-height: 1.6;
+}
+.setup-card .rules-summary strong { color: var(--accent); }
+
+/* ===== GAME SCREEN ===== */
+#game-screen { display:none; }
+#game-screen.active { display:flex; flex-direction:column; min-height:100vh; }
+
+/* Header */
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid rgba(201,169,110,0.3);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.game-header .title { color: var(--accent); font-size: 1.3rem; font-weight: bold; letter-spacing: 2px; }
+.game-header .round-info { font-size: 0.9rem; color: #b8956a; }
+.game-header .btn-sm {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.game-header .btn-sm:hover { background: rgba(201,169,110,0.15); }
+
+/* Main game area */
+.game-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 12px;
+}
+
+/* Opponents area */
+.opponents-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Player panel */
+.player-panel {
+  background: var(--player-bg);
+  border: 2px solid rgba(201,169,110,0.3);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 130px;
+  text-align: center;
+  transition: all 0.3s;
+}
+.player-panel.active-turn {
+  border-color: var(--highlight);
+  box-shadow: 0 0 16px rgba(243,156,18,0.4);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 12px rgba(243,156,18,0.3); }
+  50% { box-shadow: 0 0 24px rgba(243,156,18,0.6); }
+}
+.player-panel .player-name {
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.player-panel .player-name.you { color: var(--highlight); }
+.player-panel .card-count {
+  font-size: 0.8rem;
+  color: #9a8c7a;
+}
+.player-panel .role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  margin-top: 3px;
+  font-weight: bold;
+}
+.role-badge.criminal { background: #c0392b; color: #fff; }
+.role-badge.innocent { background: #27ae60; color: #fff; }
+
+/* Opponent cards */
+.opponent-cards {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.opponent-cards .mini-card {
+  width: 28px; height: 40px;
+  background: linear-gradient(135deg, #3a3a8c, #252550);
+  border: 1px solid #555;
+  border-radius: 3px;
+}
+
+/* Your hand area */
+.your-hand-area {
+  background: var(--player-bg);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-top: auto;
+}
+.your-hand-area h3 {
+  color: var(--accent);
+  margin-bottom: 10px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.your-hand-area h3 .badge { 
+  font-size: 0.7rem; background: var(--highlight); color:#1a3a1a;
+  padding: 2px 8px; border-radius: 10px;
+}
+
+.cards-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Card */
+.card {
+  width: clamp(80px, 18vw, 110px);
+  height: clamp(120px, 26vw, 160px);
+  background: var(--card-bg);
+  border: 3px solid var(--card-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+  color: var(--text);
+  user-select: none;
+}
+.card:hover { transform: translateY(-8px); box-shadow: 0 10px 24px rgba(0,0,0,0.4); }
+.card.selected { border-color: var(--highlight); box-shadow: 0 0 20px rgba(243,156,18,0.6); transform: translateY(-10px); }
+.card.unplayable { opacity: 0.5; cursor: not-allowed; }
+.card.unplayable:hover { transform: none; box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
+.card .card-icon { font-size: clamp(1.6rem, 5vw, 2.4rem); margin-bottom: 4px; }
+.card .card-name { font-size: clamp(0.7rem, 2vw, 0.9rem); font-weight: bold; text-align: center; }
+.card .card-type { font-size: 0.65rem; color: #8b7355; }
+.card .card-desc { font-size: 0.6rem; color: #666; text-align: center; margin-top: 2px; line-height: 1.2; padding: 0 4px; }
+
+/* Log area */
+.log-area {
+  background: rgba(0,0,0,0.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  max-height: 130px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  color: #b8956a;
+  line-height: 1.6;
+}
+.log-area .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.log-area .log-entry.important { color: var(--highlight); font-weight: bold; }
+.log-area .log-entry.danger { color: #e74c3c; }
+.log-area .log-entry.success { color: #2ecc71; }
+.log-area .log-entry.info { color: #3498db; }
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal-dialog {
+  background: #2d5a27;
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  padding: 24px 28px;
+  max-width: 420px;
+  width: 90%;
+  color: var(--light-text);
+  text-align: center;
+}
+.modal-dialog h2 { color: var(--accent); margin-bottom: 12px; }
+.modal-dialog .btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  margin: 4px;
+  transition: all 0.2s;
+}
+.modal-dialog .btn-primary { background: var(--accent); color: #1a3a1a; font-weight: bold; }
+.modal-dialog .btn-primary:hover { background: #d4b87a; }
+.modal-dialog .btn-danger { background: #c0392b; color: #fff; }
+.modal-dialog .btn-secondary { background: rgba(255,255,255,0.15); color: var(--light-text); }
+.player-select-list {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0;
+}
+.player-select-item {
+  padding: 8px 16px;
+  background: rgba(201,169,110,0.15);
+  border: 2px solid rgba(201,169,110,0.4);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.player-select-item:hover, .player-select-item.chosen {
+  background: var(--accent);
+  color: #1a3a1a;
+  font-weight: bold;
+}
+
+/* Game over screen */
+.game-over-overlay {
+  position:fixed; top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.85); display:flex; align-items:center;
+  justify-content:center; z-index:200;
+}
+.game-over-box {
+  text-align: center;
+  padding: 40px;
+  background: #2d5a27;
+  border-radius: 20px;
+  border: 3px solid var(--accent);
+  max-width: 500px;
+  width: 90%;
+}
+.game-over-box .result-icon { font-size: 4rem; margin-bottom: 8px; }
+.game-over-box h2 { font-size: 2rem; margin-bottom: 8px; }
+.game-over-box .result-detail { color: #b8956a; margin-bottom: 20px; line-height: 1.6; }
+.game-over-box .btn { padding: 12px 30px; font-size: 1.1rem; background: var(--accent); color:#1a3a1a; border:none; border-radius: 10px; cursor:pointer; font-weight:bold; letter-spacing:1px; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .opponents-area { gap: 6px; }
+  .player-panel { min-width: 90px; padding: 8px 10px; }
+  .cards-hand { gap: 6px; }
+  .your-hand-area { padding: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setup-screen">
+  <h1>🃏 身份谜局</h1>
+  <div class="subtitle">卡牌推理桌游</div>
+  <div class="setup-card">
+    <label for="player-count">👥 选择玩家人数（含你）</label>
+    <select id="player-count">
+      <option value="3">3 人</option>
+      <option value="4">4 人</option>
+      <option value="5" selected>5 人</option>
+      <option value="6">6 人</option>
+      <option value="7">7 人</option>
+      <option value="8">8 人</option>
+    </select>
+    <button onclick="startGame()">🎮 开始游戏</button>
+    <div class="rules-summary">
+      <strong>规则概要：</strong>每人4张牌，轮流打出。拿到<strong>第一发现者</strong>的人先出牌。
+      <strong>犯人</strong>只剩此一张时可打出即获胜。<strong>侦探</strong>可指控；<strong>神犬</strong>可弃牌。
+      <strong>不在场证明</strong>在手牌中保护你免受侦探指控。
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="game-screen">
+  <div class="game-header">
+    <span class="title">🃏 身份谜局</span>
+    <span class="round-info" id="round-info">回合 1</span>
+    <button class="btn-sm" onclick="showRules()">📖 规则</button>
+  </div>
+  <div class="game-body">
+    <div class="opponents-area" id="opponents-area"></div>
+    <div class="log-area" id="log-area">
+      <div class="log-entry">游戏开始！等待第一发现者出牌...</div>
+    </div>
+    <div class="your-hand-area" id="your-hand-area">
+      <h3>🫵 我的手牌 <span class="badge" id="hand-count">4 张</span></h3>
+      <div class="cards-hand" id="cards-hand"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   GAME CONSTANTS & DATA
+   ================================================================ */
+const CARD_DEFS = {
+  first_finder:    { name:'第一发现者', icon:'🔍', type:'主动', desc:'必须第一个打出，启动游戏' },
+  criminal:        { name:'犯人',     icon:'🦹', type:'主动', desc:'仅剩此一张时可打出，犯人阵营获胜' },
+  accomplice:      { name:'共犯',     icon:'🕵️', type:'主动', desc:'亮明犯人阵营身份' },
+  detective:       { name:'侦探',     icon:'🔎', type:'主动', desc:'指控一人：有犯人无不在场证明即胜' },
+  alibi:           { name:'不在场证明', icon:'🛡️', type:'被动', desc:'在手牌中免疫侦探指控' },
+  witness:         { name:'目击者',   icon:'👁️', type:'主动', desc:'查看一名其他玩家的所有手牌' },
+  rumor:           { name:'谣言',     icon:'💬', type:'主动', desc:'全体从上家随机抽1张牌' },
+  trade:           { name:'交易',     icon:'🤝', type:'主动', desc:'与一名玩家秘密交换1张手牌' },
+  intel_exchange:  { name:'情报交换', icon:'📨', type:'主动', desc:'每人选1张传给下家' },
+  civilian:        { name:'普通人',   icon:'🧑', type:'主动', desc:'无效果，纯粹消耗手牌' },
+  divine_dog:      { name:'神犬',     icon:'🐕', type:'主动', desc:'弃掉一人1张牌，弃掉犯人即胜' },
+};
+
+const FULL_DECK = [
+  'first_finder',                          // x1
+  'criminal',                              // x1
+  'detective',                             // x1
+  'divine_dog',                            // x1
+  'accomplice','accomplice',               // x2
+  'alibi','alibi','alibi',                 // x3
+  'rumor','rumor','rumor','rumor','rumor', // x5
+  'intel_exchange','intel_exchange','intel_exchange','intel_exchange','intel_exchange', // x5
+  'civilian','civilian','civilian','civilian', // x4
+  'trade','trade','trade','trade','trade', // x5
+  'witness','witness','witness','witness', // x4
+];
+
+/* ================================================================
+   GAME STATE
+   ================================================================ */
+let gameState = null;
+
+function initGameState(playerCount) {
+  const names = ['你'];
+  for (let i = 1; i < playerCount; i++) names.push(`玩家 ${i}`);
+  
+  // Determine accomplice count
+  let accompliceCount = 0;
+  if (playerCount >= 4 && playerCount <= 5) accompliceCount = 1;
+  else if (playerCount >= 6) accompliceCount = 2;
+  
+  // Build deck: mandatory cards + random fill to playerCount * 4
+  const totalCards = playerCount * 4;
+  const mandatory = ['first_finder', 'criminal', 'detective'];
+  // Add at least 1 alibi
+  mandatory.push('alibi');
+  // Add accomplices
+  for (let i = 0; i < accompliceCount; i++) mandatory.push('accomplice');
+  
+  // Remaining slots
+  const remaining = totalCards - mandatory.length;
+  
+  // Pool of all other cards (excluding mandatory counts already used)
+  const pool = [...FULL_DECK];
+  // Remove mandatory cards from pool
+  for (const m of mandatory) {
+    const idx = pool.indexOf(m);
+    if (idx >= 0) pool.splice(idx, 1);
+  }
+  
+  // Shuffle pool and take remaining
+  shuffleArray(pool);
+  const deck = [...mandatory, ...pool.slice(0, remaining)];
+  shuffleArray(deck);
+  
+  // Deal 4 cards each
+  const hands = [];
+  for (let i = 0; i < playerCount; i++) {
+    hands.push(deck.slice(i * 4, (i + 1) * 4));
+  }
+  
+  // Find first_finder owner
+  let firstFinderOwner = -1;
+  for (let i = 0; i < playerCount; i++) {
+    if (hands[i].includes('first_finder')) { firstFinderOwner = i; break; }
+  }
+  
+  return {
+    playerCount,
+    names,
+    hands,              // array of arrays of card IDs
+    playedCards: [],    // discarded pile
+    currentPlayer: firstFinderOwner,
+    turnNumber: 1,
+    gameOver: false,
+    winner: null,
+    log: [],
+    // AI memory: what each AI has seen
+    aiKnowledge: Array.from({length: playerCount}, () => ({})),
+    // For 谣言: track cards that were just drawn (can't be stolen by 下家 in same round)
+    rumorProtected: new Set(),
+  };
+}
+
+/* ================================================================
+   HELPERS
+   ================================================================ */
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function getCardDef(id) { return CARD_DEFS[id]; }
+
+function isPlayerHuman(idx) { return idx === 0; }
+
+function isCriminalSide(cardId) { return cardId === 'criminal' || cardId === 'accomplice'; }
+
+function addLog(msg, cls = '') {
+  gameState.log.push({msg, cls});
+  renderLog();
+}
+
+/* ================================================================
+   RENDERING
+   ================================================================ */
+function renderAll() {
+  renderOpponents();
+  renderHand();
+  renderLog();
+  document.getElementById('round-info').textContent = `回合 ${gameState.turnNumber}`;
+}
+
+function renderOpponents() {
+  const container = document.getElementById('opponents-area');
+  const { playerCount, names, hands, currentPlayer, gameOver } = gameState;
+  let html = '';
+  for (let i = 1; i < playerCount; i++) {
+    const isActive = i === currentPlayer && !gameOver;
+    html += `<div class="player-panel${isActive ? ' active-turn' : ''}">`;
+    html += `<div class="player-name">${names[i]}</div>`;
+    html += `<div class="card-count">🂠 ${hands[i].length} 张</div>`;
+    html += `<div class="opponent-cards">`;
+    for (let j = 0; j < hands[i].length; j++) {
+      html += `<div class="mini-card"></div>`;
+    }
+    html += `</div></div>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderHand() {
+  const container = document.getElementById('cards-hand');
+  const hand = gameState.hands[0];
+  const isMyTurn = gameState.currentPlayer === 0 && !gameState.gameOver;
+  
+  document.getElementById('hand-count').textContent = `${hand.length} 张`;
+  
+  let html = '';
+  for (const cardId of hand) {
+    const def = getCardDef(cardId);
+    const canPlay = canPlayCard(0, cardId);
+    const isSelected = gameState._selectedCard === cardId;
+    html += `<div class="card${isSelected ? ' selected' : ''}${(!canPlay && isMyTurn) ? ' unplayable' : ''}"
+      data-card="${cardId}"
+      onclick="onCardClick('${cardId}')">
+      <div class="card-icon">${def.icon}</div>
+      <div class="card-name">${def.name}</div>
+      <div class="card-type">${def.type}</div>
+      <div class="card-desc">${def.desc}</div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderLog() {
+  const container = document.getElementById('log-area');
+  const logs = gameState.log.slice(-20);
+  container.innerHTML = logs.map(l => 
+    `<div class="log-entry ${l.cls}">${l.msg}</div>`
+  ).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+/* ================================================================
+   CARD PLAYABILITY
+   ================================================================ */
+function canPlayCard(playerIdx, cardId) {
+  const hand = gameState.hands[playerIdx];
+  // 第一发现者: must be played first if you are the starting player
+  // If it's the very first turn and player has first_finder, they MUST play it
+  if (gameState.turnNumber === 1 && cardId === 'first_finder') return true;
+  if (gameState.turnNumber === 1 && hand.includes('first_finder') && cardId !== 'first_finder') return false;
+  
+  // 犯人: can only play if it's the only card left
+  if (cardId === 'criminal') return hand.length === 1;
+  
+  return true;
+}
+
+/* ================================================================
+   PLAYER ACTIONS
+   ================================================================ */
+function onCardClick(cardId) {
+  if (gameState.gameOver) return;
+  if (gameState.currentPlayer !== 0) return;
+  
+  const hand = gameState.hands[0];
+  if (!hand.includes(cardId)) return;
+  
+  // First turn: must play first_finder if you have it
+  if (gameState.turnNumber === 1 && hand.includes('first_finder') && cardId !== 'first_finder') {
+    addLog('⚠️ 第一回合必须打出「第一发现者」！', 'important');
+    return;
+  }
+  
+  if (!canPlayCard(0, cardId)) {
+    if (cardId === 'criminal') {
+      addLog('⚠️ 犯人只能在只剩这一张手牌时才能打出！', 'danger');
+    }
+    return;
+  }
+  
+  // If card needs a target, show selection modal
+  if (needsTarget(cardId)) {
+    gameState._pendingCard = cardId;
+    showTargetSelection(cardId);
+    return;
+  }
+  
+  // Confirm play
+  gameState._selectedCard = cardId;
+  renderHand();
+  
+  // Show confirm
+  showConfirmPlay(cardId);
+}
+
+function needsTarget(cardId) {
+  return ['detective', 'witness', 'trade', 'divine_dog'].includes(cardId);
+}
+
+function executePlay(playerIdx, cardId, targetIdx = -1) {
+  const hand = gameState.hands[playerIdx];
+  const cardIdx = hand.indexOf(cardId);
+  if (cardIdx < 0) return false;
+  
+  // Remove card from hand
+  hand.splice(cardIdx, 1);
+  gameState.playedCards.push(cardId);
+  
+  const def = getCardDef(cardId);
+  const playerName = gameState.names[playerIdx];
+  
+  addLog(`${playerName} 打出了【${def.name}】${def.icon}`, 'important');
+  
+  // Mark important cards for extra pause so player can see what happened
+  const importantCards = ['rumor', 'divine_dog', 'intel_exchange', 'detective'];
+  if (importantCards.includes(cardId)) {
+    gameState._importantCardPlayed = true;
+  }
+  
+  // Resolve card effect
+  resolveEffect(playerIdx, cardId, targetIdx);
+  
+  return true;
+}
+
+function resolveEffect(playerIdx, cardId, targetIdx) {
+  switch (cardId) {
+    case 'first_finder':
+      addLog('📢 游戏正式开始！');
+      break;
+      
+    case 'criminal':
+      gameOver('criminal', playerIdx);
+      return;
+      
+    case 'accomplice':
+      addLog(`🕵️ ${gameState.names[playerIdx]} 亮明了犯人阵营身份！`, 'danger');
+      break;
+      
+    case 'detective':
+      resolveDetective(playerIdx, targetIdx);
+      break;
+      
+    case 'witness':
+      resolveWitness(playerIdx, targetIdx);
+      break;
+      
+    case 'divine_dog':
+      resolveDivineDog(playerIdx, targetIdx);
+      break;
+      
+    case 'trade':
+      resolveTrade(playerIdx, targetIdx);
+      break;
+      
+    case 'rumor':
+      resolveRumor();
+      break;
+      
+    case 'intel_exchange':
+      resolveIntelExchange();
+      break;
+      
+    case 'alibi':
+    case 'civilian':
+    default:
+      addLog('无事发生。');
+      break;
+  }
+  
+  if (!gameState.gameOver && !gameState._pendingEffect) {
+    advanceTurn();
+  }
+}
+
+function resolveDetective(playerIdx, targetIdx) {
+  const targetHand = gameState.hands[targetIdx];
+  const hasCriminal = targetHand.includes('criminal');
+  const hasAlibi = targetHand.includes('alibi');
+  const targetName = gameState.names[targetIdx];
+  
+  if (hasCriminal && !hasAlibi) {
+    addLog(`🔎 ${gameState.names[playerIdx]} 指控 ${targetName} 是犯人——指控成功！`, 'success');
+    gameOver('detective', playerIdx);
+  } else if (hasCriminal && hasAlibi) {
+    addLog(`🛡️ ${targetName} 有不在场证明，侦探的指控无效！`, 'important');
+  } else {
+    addLog(`🔎 ${targetName} 不是犯人，侦探的指控落空了。`);
+  }
+}
+
+function resolveWitness(playerIdx, targetIdx) {
+  const targetHand = [...gameState.hands[targetIdx]];
+  // Show cards to the player if human is involved
+  if (playerIdx === 0 || targetIdx === 0) {
+    const viewer = playerIdx === 0 ? '你' : gameState.names[playerIdx];
+    const viewee = targetIdx === 0 ? '你' : gameState.names[targetIdx];
+    const cardsStr = targetHand.map(c => getCardDef(c).name + getCardDef(c).icon).join('、');
+    
+    if (playerIdx === 0) {
+      // Human is viewing
+      addLog(`👁️ 你查看了 ${viewee} 的手牌：${cardsStr || '（空）'}`, 'info');
+    } else if (targetIdx === 0) {
+      // Human is being viewed
+      addLog(`👁️ ${viewer} 通过目击者查看了你的手牌！`);
+    }
+    
+    // Store in AI knowledge
+    if (playerIdx !== 0) {
+      for (const c of targetHand) {
+        gameState.aiKnowledge[playerIdx][c] = (gameState.aiKnowledge[playerIdx][c] || 0) + 1;
+      }
+    }
+  } else {
+    addLog(`👁️ ${gameState.names[playerIdx]} 查看了 ${gameState.names[targetIdx]} 的手牌。`);
+    for (const c of targetHand) {
+      gameState.aiKnowledge[playerIdx][c] = (gameState.aiKnowledge[playerIdx][c] || 0) + 1;
+    }
+  }
+}
+
+function resolveDivineDog(playerIdx, targetIdx) {
+  const targetHand = gameState.hands[targetIdx];
+  if (targetHand.length === 0) {
+    addLog(`🐕 ${gameState.names[targetIdx]} 没有手牌，神犬无事可做。`);
+    return;
+  }
+  
+  // Random discard - player cannot see target's cards
+  const cardToDiscard = targetHand[Math.floor(Math.random() * targetHand.length)];
+  resolveDivineDogDiscard(playerIdx, targetIdx, cardToDiscard);
+}
+
+function resolveDivineDogDiscard(playerIdx, targetIdx, cardId) {
+  const targetHand = gameState.hands[targetIdx];
+  const idx = targetHand.indexOf(cardId);
+  if (idx < 0) return;
+  
+  targetHand.splice(idx, 1);
+  const targetName = gameState.names[targetIdx];
+  
+  addLog(`🐕 神犬弃掉了 ${targetName} 的【${getCardDef(cardId).name}】！`, 'danger');
+  
+  if (cardId === 'criminal') {
+    addLog('🎉 神犬弃掉了犯人牌！非犯人阵营获胜！', 'success');
+    gameOver('divine_dog', playerIdx);
+  } else {
+    // Target gets the divine_dog card
+    targetHand.push('divine_dog');
+    addLog(`🐕 ${targetName} 收走了神犬牌。`);
+  }
+}
+
+function resolveTrade(playerIdx, targetIdx) {
+  const handA = gameState.hands[playerIdx];
+  const handB = gameState.hands[targetIdx];
+  
+  if (handB.length === 0) {
+    addLog('🤝 对方没有手牌，交易无法进行。');
+    return;
+  }
+  
+  // Human involved
+  if (playerIdx === 0 || targetIdx === 0) {
+    gameState._tradeInitiator = playerIdx;
+    gameState._tradeTarget = targetIdx;
+    gameState._pendingEffect = true;
+    showTradeSelection(playerIdx, targetIdx);
+    return;
+  }
+  
+  // AI vs AI: random trade
+  const cardA = handA[Math.floor(Math.random() * handA.length)];
+  const cardB = handB[Math.floor(Math.random() * handB.length)];
+  
+  const idxA = handA.indexOf(cardA);
+  const idxB = handB.indexOf(cardB);
+  handA.splice(idxA, 1);
+  handB.splice(idxB, 1);
+  handA.push(cardB);
+  handB.push(cardA);
+  
+  addLog(`🤝 ${gameState.names[playerIdx]} 和 ${gameState.names[targetIdx]} 秘密交换了一张牌。`);
+}
+
+function resolveRumor() {
+  const { playerCount, hands } = gameState;
+  const newCards = Array.from({length: playerCount}, () => null);
+  
+  // For each player, try to draw from the previous player (上家)
+  for (let i = 0; i < playerCount; i++) {
+    const upperIdx = (i - 1 + playerCount) % playerCount;
+    const upperHand = hands[upperIdx];
+    
+    if (upperHand.length === 0) {
+      addLog(`💬 ${gameState.names[i]} 的上家没有手牌，什么也没抽到。`);
+      continue;
+    }
+    
+    // Filter out rumor-protected cards (just drawn by upper from their upper)
+    const availableCards = upperHand.filter(c => 
+      !gameState.rumorProtected.has(`${upperIdx}_${c}`)
+    );
+    
+    if (availableCards.length === 0) {
+      // All cards are protected, pick randomly from all (fallback)
+      const pick = upperHand[Math.floor(Math.random() * upperHand.length)];
+      const pickIdx = upperHand.indexOf(pick);
+      upperHand.splice(pickIdx, 1);
+      hands[i].push(pick);
+      gameState.rumorProtected.add(`${i}_${pick}`);
+      addLog(`💬 ${gameState.names[i]} 从上家抽到了一张牌。`);
+    } else {
+      const pick = availableCards[Math.floor(Math.random() * availableCards.length)];
+      const pickIdx = upperHand.indexOf(pick);
+      upperHand.splice(pickIdx, 1);
+      hands[i].push(pick);
+      gameState.rumorProtected.add(`${i}_${pick}`);
+      addLog(`💬 ${gameState.names[i]} 从上家抽到了一张牌。`);
+    }
+  }
+  
+  gameState.rumorProtected.clear();
+  addLog('💬 谣言平息，所有人的手牌都发生了变化...');
+}
+
+function resolveIntelExchange() {
+  const { playerCount, hands, names } = gameState;
+  const passedCards = Array.from({length: playerCount}, () => null);
+  
+  // For human player, show selection
+  if (hands[0].length > 0) {
+    gameState._pendingEffect = true;
+    gameState._intelExchangeDone = Array.from({length: playerCount}, () => null);
+    showIntelExchangeSelection();
+    return;
+  } else {
+    // Human has no cards, nothing to pass
+    passedCards[0] = null;
+  }
+  
+  // AI players choose
+  for (let i = 1; i < playerCount; i++) {
+    if (hands[i].length > 0) {
+      passedCards[i] = aiChooseIntelCard(i);
+    } else {
+      passedCards[i] = null;
+    }
+  }
+  
+  finishIntelExchange(passedCards);
+}
+
+function finishIntelExchange(passedCards) {
+  const { playerCount, hands } = gameState;
+  const protectedCards = new Set();
+  
+  for (let i = 0; i < playerCount; i++) {
+    const nextIdx = (i + 1) % playerCount;
+    const card = passedCards[i];
+    
+    if (card !== null) {
+      // Remove from passer's hand
+      const idx = hands[i].indexOf(card);
+      if (idx >= 0) {
+        hands[i].splice(idx, 1);
+        hands[nextIdx].push(card);
+        protectedCards.add(`${nextIdx}_${card}`);
+        addLog(`📨 ${gameState.names[i]} 传给 ${gameState.names[nextIdx]} 一张牌。`);
+      }
+    }
+  }
+  
+  addLog('📨 情报交换完成！');
+}
+
+function gameOver(reason, winningPlayer) {
+  gameState.gameOver = true;
+  let winnerTeam = '';
+  let detail = '';
+  
+  if (reason === 'criminal') {
+    winnerTeam = '犯人阵营';
+    detail = `${gameState.names[winningPlayer]} 打出了犯人牌，犯人阵营获胜！`;
+  } else if (reason === 'detective') {
+    winnerTeam = '非犯人阵营（侦探方）';
+    detail = `侦探成功指控了犯人，非犯人阵营获胜！`;
+  } else if (reason === 'divine_dog') {
+    winnerTeam = '非犯人阵营（侦探方）';
+    detail = `神犬弃掉了犯人牌，非犯人阵营获胜！`;
+  }
+  
+  gameState.winner = { team: winnerTeam, detail };
+  
+  // Reveal all hands
+  let revealHtml = '';
+  for (let i = 0; i < gameState.playerCount; i++) {
+    const cards = gameState.hands[i].map(c => getCardDef(c).name + getCardDef(c).icon).join(' ');
+    revealHtml += `<div>${gameState.names[i]}：${cards || '（无）'}</div>`;
+  }
+  
+  document.getElementById('game-screen').insertAdjacentHTML('beforeend', `
+    <div class="game-over-overlay" id="game-over-overlay">
+      <div class="game-over-box">
+        <div class="result-icon">${reason === 'criminal' ? '🦹' : '🎉'}</div>
+        <h2>${reason === 'criminal' ? '犯人阵营获胜！' : '非犯人阵营获胜！'}</h2>
+        <div class="result-detail">
+          <p>${detail}</p>
+          <div style="margin-top:12px;font-size:0.85rem;color:#b8956a;">${revealHtml}</div>
+        </div>
+        <button class="btn" onclick="location.reload()">🔄 再来一局</button>
+      </div>
+    </div>
+  `);
+  
+  addLog(`🏁 游戏结束！${detail}`, 'important');
+  renderAll();
+}
+
+function advanceTurn() {
+  const { playerCount, hands } = gameState;
+  
+  // Find next player with cards
+  let nextPlayer = (gameState.currentPlayer + 1) % playerCount;
+  let attempts = 0;
+  while (hands[nextPlayer].length === 0 && attempts < playerCount) {
+    nextPlayer = (nextPlayer + 1) % playerCount;
+    attempts++;
+  }
+  
+  // Check if everyone has no cards (shouldn't happen with criminal rule, but safety)
+  const allEmpty = hands.every(h => h.length === 0);
+  if (allEmpty) {
+    addLog('所有手牌已打完！', 'important');
+    // This shouldn't happen per rules, but handle gracefully
+    gameOver('criminal', -1);
+    return;
+  }
+  
+  gameState.currentPlayer = nextPlayer;
+  gameState.turnNumber++;
+  gameState._selectedCard = null;
+  
+  addLog(`➡️ 轮到 ${gameState.names[nextPlayer]} 出牌。`);
+  renderAll();
+  
+  // If AI's turn, trigger AI with delay (longer for important cards like 谣言/神犬)
+  if (nextPlayer !== 0) {
+    const delay = gameState._importantCardPlayed ? 2200 : 1200;
+    gameState._importantCardPlayed = false;
+    setTimeout(() => aiPlay(nextPlayer), delay + Math.random() * 800);
+  }
+}
+
+/* ================================================================
+   AI LOGIC
+   ================================================================ */
+function aiPlay(playerIdx) {
+  if (gameState.gameOver) return;
+  
+  const hand = gameState.hands[playerIdx];
+  if (hand.length === 0) {
+    advanceTurn();
+    return;
+  }
+  
+  // First turn: must play first_finder if you have it
+  if (gameState.turnNumber === 1 && hand.includes('first_finder')) {
+    executePlay(playerIdx, 'first_finder');
+    renderAll();
+    return;
+  }
+  
+  // If criminal is the only card, play it!
+  if (hand.length === 1 && hand[0] === 'criminal') {
+    executePlay(playerIdx, 'criminal');
+    renderAll();
+    return;
+  }
+  
+  // Strategy: prioritize certain cards
+  // 1. If AI has detective and knows someone has criminal without alibi → accuse
+  if (hand.includes('detective')) {
+    const suspect = aiFindSuspect(playerIdx);
+    if (suspect >= 0) {
+      executePlay(playerIdx, 'detective', suspect);
+      renderAll();
+      return;
+    }
+  }
+  
+  // 2. If AI has divine_dog and suspects someone → use it
+  if (hand.includes('divine_dog')) {
+    const suspect = aiFindDivineDogTarget(playerIdx);
+    if (suspect >= 0) {
+      executePlay(playerIdx, 'divine_dog', suspect);
+      renderAll();
+      return;
+    }
+  }
+  
+  // 3. If AI has witness, use it to gather info
+  if (hand.includes('witness')) {
+    const target = aiChooseWitnessTarget(playerIdx);
+    if (target >= 0) {
+      executePlay(playerIdx, 'witness', target);
+      renderAll();
+      return;
+    }
+  }
+  
+  // 4. Play a non-essential card (prefer civilian, then accomplice, then others)
+  const priority = ['civilian', 'accomplice', 'alibi', 'trade', 'rumor', 'intel_exchange', 'witness', 'divine_dog', 'detective'];
+  for (const cardId of priority) {
+    if (hand.includes(cardId) && canPlayCard(playerIdx, cardId)) {
+      // For cards needing target, pick appropriate
+      if (cardId === 'trade') {
+        const target = aiChooseTradeTarget(playerIdx);
+        if (target >= 0) {
+          executePlay(playerIdx, 'trade', target);
+          renderAll();
+          return;
+        }
+      } else if (cardId === 'divine_dog') {
+        const target = aiChooseDivineDogTarget(playerIdx);
+        if (target >= 0) {
+          executePlay(playerIdx, 'divine_dog', target);
+          renderAll();
+          return;
+        }
+      } else if (cardId === 'detective') {
+        const targets = getValidTargets(playerIdx, 'detective');
+        if (targets.length > 0) {
+          executePlay(playerIdx, 'detective', targets[Math.floor(Math.random() * targets.length)]);
+          renderAll();
+          return;
+        }
+      } else if (cardId === 'witness') {
+        const targets = getValidTargets(playerIdx, 'witness');
+        if (targets.length > 0) {
+          executePlay(playerIdx, 'witness', targets[Math.floor(Math.random() * targets.length)]);
+          renderAll();
+          return;
+        }
+      } else {
+        executePlay(playerIdx, cardId);
+        renderAll();
+        return;
+      }
+    }
+  }
+  
+  // Fallback: play any playable card
+  for (const cardId of hand) {
+    if (canPlayCard(playerIdx, cardId)) {
+      if (needsTarget(cardId)) {
+        const targets = getValidTargets(playerIdx, cardId);
+        if (targets.length > 0) {
+          executePlay(playerIdx, cardId, targets[Math.floor(Math.random() * targets.length)]);
+          renderAll();
+          return;
+        }
+      } else {
+        executePlay(playerIdx, cardId);
+        renderAll();
+        return;
+      }
+    }
+  }
+  
+  // Shouldn't reach here, but just in case
+  advanceTurn();
+}
+
+function aiFindSuspect(playerIdx) {
+  // Check if AI knows someone has criminal and no alibi
+  const { hands, aiKnowledge, playerCount } = gameState;
+  for (let i = 0; i < playerCount; i++) {
+    if (i === playerIdx) continue;
+    if (hands[i].length === 0) continue;
+    
+    // AI has seen this player's hand via witness
+    const knownCriminal = aiKnowledge[playerIdx]['criminal'] > 0;
+    const knownAlibi = aiKnowledge[playerIdx]['alibi'] > 0;
+    
+    if (knownCriminal && !knownAlibi && hands[i].includes('criminal')) {
+      // Verify criminal is still there
+      return i;
+    }
+  }
+  
+  // Random guess if no knowledge (low probability)
+  if (Math.random() < 0.15) {
+    const targets = [];
+    for (let i = 0; i < playerCount; i++) {
+      if (i !== playerIdx && hands[i].length > 0) targets.push(i);
+    }
+    if (targets.length > 0) return targets[Math.floor(Math.random() * targets.length)];
+  }
+  
+  return -1;
+}
+
+function aiFindDivineDogTarget(playerIdx) {
+  // Use divine dog on someone who might have criminal
+  const { playerCount } = gameState;
+  const knowledge = gameState.aiKnowledge[playerIdx];
+  
+  // If AI knows someone might have criminal
+  for (let i = 0; i < playerCount; i++) {
+    if (i === playerIdx || gameState.hands[i].length === 0) continue;
+    if (knowledge['criminal'] > 0 && gameState.hands[i].includes('criminal')) return i;
+  }
+  
+  // Random target
+  const targets = [];
+  for (let i = 0; i < playerCount; i++) {
+    if (i !== playerIdx && gameState.hands[i].length > 0) targets.push(i);
+  }
+  if (targets.length > 0) return targets[Math.floor(Math.random() * targets.length)];
+  return -1;
+}
+
+function aiChooseWitnessTarget(playerIdx) {
+  const { playerCount } = gameState;
+  // Prefer players AI hasn't seen yet
+  const seen = new Set();
+  for (const cardId in gameState.aiKnowledge[playerIdx]) {
+    if (gameState.aiKnowledge[playerIdx][cardId] > 0) seen.add(cardId);
+  }
+  
+  // Pick random player with cards
+  const targets = [];
+  for (let i = 0; i < playerCount; i++) {
+    if (i !== playerIdx && gameState.hands[i].length > 0) targets.push(i);
+  }
+  if (targets.length > 0) return targets[Math.floor(Math.random() * targets.length)];
+  return -1;
+}
+
+function aiChooseTradeTarget(playerIdx) {
+  const targets = [];
+  for (let i = 0; i < gameState.playerCount; i++) {
+    if (i !== playerIdx && gameState.hands[i].length > 0) targets.push(i);
+  }
+  if (targets.length > 0) return targets[Math.floor(Math.random() * targets.length)];
+  return -1;
+}
+
+function aiChooseDivineDogTarget(playerIdx) {
+  return aiFindDivineDogTarget(playerIdx);
+}
+
+function aiChooseCardToDiscard(playerIdx, targetIdx) {
+  // AI tries to discard criminal if they suspect it
+  const targetHand = gameState.hands[targetIdx];
+  const knowledge = gameState.aiKnowledge[playerIdx];
+  
+  if (knowledge['criminal'] > 0 && targetHand.includes('criminal')) {
+    return 'criminal';
+  }
+  
+  // Random card
+  return targetHand[Math.floor(Math.random() * targetHand.length)];
+}
+
+function aiChooseIntelCard(playerIdx) {
+  const hand = gameState.hands[playerIdx];
+  // Prefer to pass civilian or non-essential cards
+  const priority = ['civilian', 'accomplice', 'alibi', 'rumor', 'intel_exchange', 'trade', 'witness'];
+  for (const c of priority) {
+    if (hand.includes(c)) return c;
+  }
+  return hand[0];
+}
+
+function getValidTargets(playerIdx, cardId) {
+  const targets = [];
+  for (let i = 0; i < gameState.playerCount; i++) {
+    if (i === playerIdx) continue;
+    if (cardId === 'trade' && gameState.hands[i].length === 0) continue;
+    targets.push(i);
+  }
+  return targets;
+}
+
+/* ================================================================
+   UI MODALS
+   ================================================================ */
+function showConfirmPlay(cardId) {
+  const def = getCardDef(cardId);
+  removeModal();
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-dialog">
+      <h2>确认出牌</h2>
+      <p>确定要打出 <strong>${def.name} ${def.icon}</strong> 吗？</p>
+      <p style="font-size:0.8rem;color:#b8956a;">${def.desc}</p>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" id="confirm-play-btn">✅ 确定打出</button>
+        <button class="btn btn-secondary" id="cancel-play-btn">❌ 取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  document.getElementById('confirm-play-btn').onclick = () => {
+    removeModal();
+    executePlay(0, cardId);
+    renderAll();
+  };
+  document.getElementById('cancel-play-btn').onclick = () => {
+    gameState._selectedCard = null;
+    removeModal();
+    renderAll();
+  };
+}
+
+function showTargetSelection(cardId) {
+  const def = getCardDef(cardId);
+  const targets = getValidTargets(0, cardId);
+  removeModal();
+  
+  let targetHtml = '';
+  for (const t of targets) {
+    targetHtml += `<div class="player-select-item" data-target="${t}">
+      ${gameState.names[t]} (${gameState.hands[t].length} 张手牌)
+    </div>`;
+  }
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-dialog">
+      <h2>${def.name} ${def.icon}</h2>
+      <p>${def.desc}</p>
+      <p style="color:var(--accent);">请选择目标玩家：</p>
+      <div class="player-select-list">${targetHtml}</div>
+      <button class="btn btn-secondary" id="cancel-target-btn">取消</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  overlay.querySelectorAll('.player-select-item').forEach(el => {
+    el.onclick = () => {
+      const target = parseInt(el.dataset.target);
+      removeModal();
+      gameState._selectedCard = cardId;
+      showConfirmPlayWithTarget(cardId, target);
+    };
+  });
+  
+  document.getElementById('cancel-target-btn').onclick = () => {
+    gameState._pendingCard = null;
+    gameState._selectedCard = null;
+    removeModal();
+    renderAll();
+  };
+}
+
+function showConfirmPlayWithTarget(cardId, targetIdx) {
+  const def = getCardDef(cardId);
+  removeModal();
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-dialog">
+      <h2>确认出牌</h2>
+      <p>对 <strong>${gameState.names[targetIdx]}</strong> 使用 <strong>${def.name} ${def.icon}</strong>？</p>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" id="confirm-target-btn">✅ 确定</button>
+        <button class="btn btn-secondary" id="cancel-target-btn2">❌ 取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  document.getElementById('confirm-target-btn').onclick = () => {
+    removeModal();
+    executePlay(0, cardId, targetIdx);
+    renderAll();
+  };
+  document.getElementById('cancel-target-btn2').onclick = () => {
+    gameState._selectedCard = null;
+    gameState._pendingCard = null;
+    removeModal();
+    renderAll();
+  };
+}
+
+function showTradeSelection(playerIdx, targetIdx) {
+  removeModal();
+  const handA = gameState.hands[playerIdx];
+  const handB = gameState.hands[targetIdx];
+  
+  // For now, simplify: if human is involved, human picks their card, AI picks randomly
+  if (playerIdx === 0) {
+    // Human is initiator
+    let cardHtml = '';
+    for (const c of handA) {
+      const def = getCardDef(c);
+      cardHtml += `<div class="player-select-item" data-card="${c}">${def.icon} ${def.name}</div>`;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-dialog">
+        <h2>🤝 交易</h2>
+        <p>选择你要交给 <strong>${gameState.names[targetIdx]}</strong> 的牌：</p>
+        <div class="player-select-list">${cardHtml}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    overlay.querySelectorAll('.player-select-item').forEach(el => {
+      el.onclick = () => {
+        const myCard = el.dataset.card;
+        removeModal();
+        // AI picks random card
+        const aiCard = handB[Math.floor(Math.random() * handB.length)];
+        executeTrade(0, targetIdx, myCard, aiCard);
+        gameState._pendingEffect = false;
+        renderAll();
+        advanceTurn();
+      };
+    });
+  } else if (targetIdx === 0) {
+    // Human is target, AI initiates
+    const aiCard = handA[Math.floor(Math.random() * handA.length)];
+    
+    let cardHtml = '';
+    for (const c of handB) {
+      const def = getCardDef(c);
+      cardHtml += `<div class="player-select-item" data-card="${c}">${def.icon} ${def.name}</div>`;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-dialog">
+        <h2>🤝 交易</h2>
+        <p>${gameState.names[playerIdx]} 想和你交易，选择你要交出的牌：</p>
+        <div class="player-select-list">${cardHtml}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    overlay.querySelectorAll('.player-select-item').forEach(el => {
+      el.onclick = () => {
+        const myCard = el.dataset.card;
+        removeModal();
+        executeTrade(playerIdx, 0, aiCard, myCard);
+        gameState._pendingEffect = false;
+        renderAll();
+        advanceTurn();
+      };
+    });
+  }
+}
+
+function executeTrade(playerA, playerB, cardA, cardB) {
+  const handA = gameState.hands[playerA];
+  const handB = gameState.hands[playerB];
+  
+  const idxA = handA.indexOf(cardA);
+  const idxB = handB.indexOf(cardB);
+  if (idxA >= 0) handA.splice(idxA, 1);
+  if (idxB >= 0) handB.splice(idxB, 1);
+  handA.push(cardB);
+  handB.push(cardA);
+  
+  addLog(`🤝 ${gameState.names[playerA]} 和 ${gameState.names[playerB]} 秘密交换了一张牌。`);
+}
+
+function showIntelExchangeSelection() {
+  removeModal();
+  const hand = gameState.hands[0];
+  
+  let cardHtml = '';
+  for (const c of hand) {
+    const def = getCardDef(c);
+    cardHtml += `<div class="player-select-item" data-card="${c}">${def.icon} ${def.name}</div>`;
+  }
+  
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-dialog">
+      <h2>📨 情报交换</h2>
+      <p>选择一张牌传给下家（${gameState.names[1]}）：</p>
+      <div class="player-select-list">${cardHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  overlay.querySelectorAll('.player-select-item').forEach(el => {
+    el.onclick = () => {
+      const myCard = el.dataset.card;
+      removeModal();
+      
+      // Now collect AI choices and execute
+      const passedCards = Array.from({length: gameState.playerCount}, () => null);
+      passedCards[0] = myCard;
+      
+      for (let i = 1; i < gameState.playerCount; i++) {
+        if (gameState.hands[i].length > 0) {
+          passedCards[i] = aiChooseIntelCard(i);
+        }
+      }
+      
+      finishIntelExchange(passedCards);
+      gameState._pendingEffect = false;
+      renderAll();
+      advanceTurn();
+    };
+  });
+}
+
+function removeModal() {
+  const existing = document.getElementById('modal-overlay');
+  if (existing) existing.remove();
+}
+
+function showRules() {
+  removeModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-dialog" style="max-width:550px;text-align:left;max-height:80vh;overflow-y:auto;">
+      <h2 style="text-align:center;">📖 游戏规则</h2>
+      ${Object.entries(CARD_DEFS).map(([id, def]) => `
+        <div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.1);">
+          <strong>${def.icon} ${def.name}</strong> <span style="color:#9a8c7a;font-size:0.75rem;">(${def.type})</span>
+          <div style="font-size:0.8rem;color:#b8956a;">${def.desc}</div>
+        </div>
+      `).join('')}
+      <div style="margin-top:12px;font-size:0.8rem;color:#b8956a;">
+        <p><strong>胜利条件：</strong>犯人打出 → 犯人阵营胜；被侦探指控或神犬弃掉 → 非犯人阵营胜</p>
+      </div>
+      <div style="text-align:center;margin-top:12px;">
+        <button class="btn btn-primary" onclick="removeModal()">知道了</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+/* ================================================================
+   START GAME
+   ================================================================ */
+function startGame() {
+  const playerCount = parseInt(document.getElementById('player-count').value);
+  gameState = initGameState(playerCount);
+  gameState._selectedCard = null;
+  gameState._pendingCard = null;
+  gameState._pendingEffect = false;
+  
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('game-screen').classList.add('active');
+  
+  addLog(`🃏 游戏开始！${playerCount} 名玩家，每人 4 张手牌。`);
+  
+  // Find first_finder owner
+  let firstFinder = -1;
+  for (let i = 0; i < playerCount; i++) {
+    if (gameState.hands[i].includes('first_finder')) {
+      firstFinder = i;
+      break;
+    }
+  }
+  
+  if (firstFinder === 0) {
+    addLog('🔍 你拿到了「第一发现者」，必须第一个出牌！', 'important');
+  } else {
+    addLog(`🔍 ${gameState.names[firstFinder]} 拿到了「第一发现者」，将首先出牌。`);
+  }
+  
+  renderAll();
+  
+  // If AI has first_finder, they play it
+  if (firstFinder !== 0) {
+    setTimeout(() => {
+      executePlay(firstFinder, 'first_finder');
+      renderAll();
+    }, 1000);
+  }
+}
+</script>
+</body>
+</html>
