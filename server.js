@@ -245,15 +245,16 @@ function resolveWitness(room, playerIdx, targetIdx) {
   const gs = room.gameState;
   const targetHand = [...gs.hands[targetIdx]];
   
-  // Send target's cards only to the witness
   const witnessPlayer = room.players[playerIdx];
   const targetPlayer = room.players[targetIdx];
   
   if (!witnessPlayer.isAI) {
+    // Human witness: show result, pause game until acknowledged
     io.to(witnessPlayer.socketId).emit('witness_result', {
       targetName: gs.names[targetIdx],
       cards: targetHand,
     });
+    gs._waitingWitnessAck = true;
   }
   
   if (!targetPlayer.isAI) {
@@ -266,7 +267,7 @@ function resolveWitness(room, playerIdx, targetIdx) {
   addLog(gs, `👁️ ${gs.names[playerIdx]} 查看了 ${gs.names[targetIdx]} 的手牌。`);
 
   // Store in AI knowledge
-  if (room.players[playerIdx].isAI) {
+  if (witnessPlayer.isAI) {
     for (const c of targetHand) {
       gs.aiKnowledge[playerIdx][c] = (gs.aiKnowledge[playerIdx][c] || 0) + 1;
     }
@@ -432,6 +433,11 @@ function executePlay(room, playerIdx, cardId, targetIdx = -1) {
       break;
     case 'witness':
       resolveWitness(room, playerIdx, targetIdx);
+      if (gs._waitingWitnessAck) {
+        // Don't advance turn - wait for human to acknowledge
+        gs._witnessPlayerIdx = playerIdx;
+        return;
+      }
       break;
     case 'divine_dog':
       resolveDivineDog(room, playerIdx, targetIdx);
@@ -902,6 +908,19 @@ io.on('connection', (socket) => {
 
     if (IMPORTANT_CARDS.includes(cardId)) gs._lastImportant = true;
     executePlay(room, playerIdx, cardId, targetIdx);
+  });
+
+  // Witness acknowledgment
+  socket.on('witness_ack', () => {
+    const code = socket.data.roomCode;
+    const room = rooms[code];
+    if (!room || !room.gameState) return;
+    const gs = room.gameState;
+    if (!gs._waitingWitnessAck) return;
+
+    gs._waitingWitnessAck = false;
+    sendGameState(code);
+    advanceTurn(room);
   });
 
   // Trade card selection response

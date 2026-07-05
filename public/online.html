@@ -570,19 +570,54 @@ socket.on('log', ({ msg, cls }) => {
 
 socket.on('witness_result', ({ targetName, cards }) => {
   removeModal();
-  const cardsStr = cards.map(c => getCardDef(c).name + getCardDef(c).icon).join('、');
+  
+  // Build large colorful card display
+  let cardsHtml = '';
+  const cardColors = {
+    criminal: '#e74c3c', accomplice: '#e67e22', first_finder: '#f39c12',
+    detective: '#2980b9', divine_dog: '#8e44ad', alibi: '#27ae60',
+    witness: '#2ecc71', trade: '#1abc9c', rumor: '#9b59b6',
+    intel_exchange: '#3498db', civilian: '#95a5a6',
+  };
+  for (const c of cards) {
+    const def = getCardDef(c);
+    const bg = cardColors[c] || '#666';
+    cardsHtml += `
+      <div style="
+        display:inline-block; width:100px; padding:12px 8px; margin:6px;
+        background:linear-gradient(135deg, ${bg}, #1a1a2e);
+        border:2px solid rgba(255,255,255,0.3); border-radius:12px;
+        text-align:center; color:#fff;
+      ">
+        <div style="font-size:2rem;">${def.icon}</div>
+        <div style="font-size:0.9rem;font-weight:bold;margin-top:4px;">${def.name}</div>
+      </div>`;
+  }
+
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
+  modal.style.zIndex = '300';
   modal.innerHTML = `
-    <div class="modal-dialog">
-      <h2>👁️ 目击结果</h2>
-      <p><strong>${targetName}</strong> 的手牌：</p>
-      <div style="font-size:1.2rem;margin:12px 0;">${cardsStr || '（空）'}</div>
-      <button class="btn btn-primary" id="witness-ok-btn">知道了</button>
+    <div class="modal-dialog" style="max-width:500px;background:#1a2a1a;border:3px solid #2ecc71;">
+      <h2 style="color:#2ecc71;font-size:1.6rem;">👁️ 目击结果</h2>
+      <p style="font-size:1.1rem;margin:8px 0;">
+        <strong style="color:#f39c12;">${targetName}</strong> 的手牌：
+      </p>
+      <div style="margin:16px 0;display:flex;flex-wrap:wrap;justify-content:center;">
+        ${cardsHtml || '<p style="color:#999;">（空）</p>'}
+      </div>
+      <p style="font-size:0.8rem;color:#888;">只有你能看到这些信息</p>
+      <button class="btn btn-primary" id="witness-ok-btn" style="
+        background:#2ecc71;color:#fff;font-size:1.1rem;padding:14px 40px;
+        margin-top:12px;border-radius:12px;
+      ">👌 我记住了</button>
     </div>
   `;
   document.body.appendChild(modal);
-  document.getElementById('witness-ok-btn').onclick = () => modal.remove();
+  document.getElementById('witness-ok-btn').onclick = () => {
+    modal.remove();
+    socket.emit('witness_ack');
+  };
 });
 
 socket.on('select_trade_card', ({ targetName, myCards }) => {
