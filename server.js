@@ -579,6 +579,17 @@ function aiPlay(room, playerIdx) {
           executePlay(room, playerIdx, 'trade', target);
           return;
         }
+      } else if (cardId === 'intel_exchange') {
+        // AI generates intel cards for all players
+        gs._intelCards = Array.from({ length: gs.playerCount }, () => null);
+        for (let i = 0; i < gs.playerCount; i++) {
+          if (gs.hands[i].length > 0) {
+            gs._intelCards[i] = aiChooseIntelCard(gs.hands[i]);
+          }
+        }
+        gs._lastImportant = true;
+        executePlay(room, playerIdx, 'intel_exchange');
+        return;
       } else if (cardId === 'divine_dog' || cardId === 'detective' || cardId === 'witness') {
         const targets = getValidTargets(gs, playerIdx, cardId);
         if (targets.length > 0) {
@@ -594,10 +605,20 @@ function aiPlay(room, playerIdx) {
     }
   }
 
-  // Fallback
+  // Fallback: try every card, including intel_exchange properly
   for (const cardId of hand) {
     if (canPlayCard(gs, playerIdx, cardId)) {
-      if (needsTarget(cardId)) {
+      if (cardId === 'intel_exchange') {
+        gs._intelCards = Array.from({ length: gs.playerCount }, () => null);
+        for (let i = 0; i < gs.playerCount; i++) {
+          if (gs.hands[i].length > 0) {
+            gs._intelCards[i] = aiChooseIntelCard(gs.hands[i]);
+          }
+        }
+        gs._lastImportant = true;
+        executePlay(room, playerIdx, 'intel_exchange');
+        return;
+      } else if (needsTarget(cardId)) {
         const targets = getValidTargets(gs, playerIdx, cardId);
         if (targets.length > 0) {
           executePlay(room, playerIdx, cardId, targets[Math.floor(Math.random() * targets.length)]);
