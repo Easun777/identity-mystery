@@ -126,7 +126,9 @@ function initGameState(room) {
     winner: null,
     log: [],
     aiKnowledge: Array.from({length: playerCount}, () => ({})),
-    _criminalSide: new Set(),  // tracks which players are on criminal team
+    _criminalSide: new Set(),
+    _divineDogUses: accompliceCount + 1,  // max uses per game
+    _divineDogUsed: 0,                     // times used so far
     waitingForTarget: null,
     waitingForTrade: null,
     waitingForIntel: false,
@@ -209,6 +211,7 @@ function sendGameState(roomCode) {
       gameOver: gs.gameOver,
       winner: gs.winner,
       myScore: (room.scores && room.scores[p.id]) || 0,
+      divineDogUses: gs._divineDogUses - gs._divineDogUsed,
     };
 
     for (let j = 0; j < gs.playerCount; j++) {
@@ -282,9 +285,17 @@ function resolveWitness(room, playerIdx, targetIdx) {
 
 function resolveDivineDog(room, playerIdx, targetIdx, cardId = null) {
   const gs = room.gameState;
+  
+  // Check if divine dog has remaining uses
+  if (gs._divineDogUsed >= gs._divineDogUses) {
+    addLog(gs, `🐕 神犬的神力已耗尽，变为普通人，无事发生。`);
+    return;
+  }
+
   const targetHand = gs.hands[targetIdx];
   if (targetHand.length === 0) {
     addLog(gs, `🐕 ${gs.names[targetIdx]} 没有手牌，神犬无事可做。`);
+    gs._divineDogUsed++;
     return;
   }
 
@@ -293,7 +304,9 @@ function resolveDivineDog(room, playerIdx, targetIdx, cardId = null) {
   if (idx < 0) return;
   targetHand.splice(idx, 1);
   
-  addLog(gs, `🐕 神犬弃掉了 ${gs.names[targetIdx]} 的【${getCardDef(discard).name}】！`, 'danger');
+  gs._divineDogUsed++;
+  const remaining = gs._divineDogUses - gs._divineDogUsed;
+  addLog(gs, `🐕 神犬弃掉了 ${gs.names[targetIdx]} 的【${getCardDef(discard).name}】！(剩余神力: ${remaining}次)`, 'danger');
 
   if (discard === 'criminal') {
     addLog(gs, '🎉 神犬弃掉了犯人牌！非犯人阵营获胜！', 'success');

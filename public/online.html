@@ -415,10 +415,23 @@ function renderMyHand(state) {
   const isMyTurn = state.currentPlayer === state.playerIdx && !state.gameOver;
   document.getElementById('hand-count').textContent = `${state.myHand.length} 张 | 🏆 ${state.myScore || 0} 分`;
   
+  const dogUses = state.divineDogUses || 0;
+  
   let html = '';
   for (const cardId of state.myHand) {
     const def = getCardDef(cardId);
     const canPlay = canIPlay(cardId, state);
+    
+    // Extra info for divine dog
+    let extraInfo = '';
+    if (cardId === 'divine_dog') {
+      if (dogUses <= 0) {
+        extraInfo = '<div style="font-size:0.55rem;color:#c0392b;margin-top:2px;">神力已耗尽</div>';
+      } else {
+        extraInfo = `<div style="font-size:0.6rem;color:#8e44ad;margin-top:2px;">🐕 剩余 ${dogUses} 次</div>`;
+      }
+    }
+    
     html += `<div class="card${(!canPlay && isMyTurn) ? ' unplayable' : ''}"
       data-card="${cardId}"
       onclick="onCardClick('${cardId}', ${isMyTurn})">
@@ -426,6 +439,7 @@ function renderMyHand(state) {
       <div class="card-name">${def.name}</div>
       <div class="card-type">${def.type}</div>
       <div class="card-desc">${def.desc}</div>
+      ${extraInfo}
     </div>`;
   }
   container.innerHTML = html;
