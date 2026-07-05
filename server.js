@@ -769,38 +769,61 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Restart game with same players
-  socket.on('restart_game', () => {
+  // Vote to restart game (all players must agree)
+  socket.on('ready_for_restart', () => {
     const code = socket.data.roomCode;
     const room = rooms[code];
     if (!room || !room.gameState || !room.gameState.gameOver) return;
 
-    // Clean up old AI timers
-    for (const t of room.aiTimers) clearTimeout(t);
-    room.aiTimers = [];
-
-    // Create fresh game state
-    room.gameState = initGameState(room);
-    room.gameState._roomCode = code;
-
     const gs = room.gameState;
-    const firstFinder = gs.currentPlayer;
-
-    addLog(gs, `🔄 新一局开始！${room.players.length} 名玩家，每人 4 张手牌。`);
-
-    if (firstFinder === 0) {
-      addLog(gs, '🔍 你拿到了「第一发现者」，必须第一个出牌！', 'important');
-    } else {
-      addLog(gs, `🔍 ${gs.names[firstFinder]} 拿到了「第一发现者」，将首先出牌。`);
+    if (!gs._restartVotes) {
+      gs._restartVotes = new Set();
+      // AI players auto-vote yes
+      for (let i = 0; i < room.players.length; i++) {
+        if (room.players[i].isAI) gs._restartVotes.add(i);
+      }
     }
 
-    sendGameState(code);
+    const playerIdx = room.players.findIndex(p => p.id === socket.id);
+    if (playerIdx < 0) return;
 
-    // Also tell clients to remove game-over overlay
-    broadcastAll(code, 'game_restarted', {});
+    gs._restartVotes.add(playerIdx);
+    
+    const totalPlayers = room.players.length;
+    const votedCount = gs._restartVotes.size;
 
-    if (room.players[firstFinder].isAI) {
-      setTimeout(() => executePlay(room, firstFinder, 'first_finder'), 1500);
+    // Tell everyone the current vote status
+    broadcastAll(code, 'restart_vote_update', {
+      votedCount,
+      totalPlayers,
+      voterName: room.players[playerIdx].name,
+    });
+
+    // All voted? Restart!
+    if (votedCount >= totalPlayers) {
+      for (const t of room.aiTimers) clearTimeout(t);
+      room.aiTimers = [];
+
+      room.gameState = initGameState(room);
+      room.gameState._roomCode = code;
+
+      const newGs = room.gameState;
+      const firstFinder = newGs.currentPlayer;
+
+      addLog(newGs, `🔄 新一局开始！${room.players.length} 名玩家，每人 4 张手牌。`);
+      
+      if (firstFinder === 0) {
+        addLog(newGs, '🔍 你拿到了「第一发现者」，必须第一个出牌！', 'important');
+      } else {
+        addLog(newGs, `🔍 ${newGs.names[firstFinder]} 拿到了「第一发现者」，将首先出牌。`);
+      }
+
+      sendGameState(code);
+      broadcastAll(code, 'game_restarted', {});
+
+      if (room.players[firstFinder].isAI) {
+        setTimeout(() => executePlay(room, firstFinder, 'first_finder'), 1500);
+      }
     }
   });
 

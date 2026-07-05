@@ -700,20 +700,48 @@ socket.on('game_over', (data) => {
         <div style="margin-top:12px;font-size:0.85rem;color:#b8956a;">${revealHtml}</div>
       </div>
       <button class="btn btn-primary" id="btn-restart">🔄 再来一局</button>
+      <div id="restart-waiting" style="display:none;margin-top:12px;color:#f39c12;font-size:0.95rem;">
+        ⏳ 等待其他玩家... (<span id="restart-count">1</span>/<span id="restart-total">3</span>)
+      </div>
     </div>
   `;
   document.body.appendChild(overlay);
+  
   document.getElementById('btn-restart').onclick = () => {
-    socket.emit('restart_game');
+    socket.emit('ready_for_restart');
+    document.getElementById('btn-restart').style.display = 'none';
+    document.getElementById('restart-waiting').style.display = 'block';
   };
+});
+
+// Vote status updates
+socket.on('restart_vote_update', ({ votedCount, totalPlayers, voterName }) => {
+  const waitingDiv = document.getElementById('restart-waiting');
+  if (waitingDiv) {
+    waitingDiv.style.display = 'block';
+    document.getElementById('restart-count').textContent = votedCount;
+    document.getElementById('restart-total').textContent = totalPlayers;
+  }
+  // Also update the button if not clicked yet
+  const btn = document.getElementById('btn-restart');
+  if (btn && btn.style.display !== 'none') {
+    // Another player voted, show progress
+    const waitingEl = document.getElementById('restart-waiting');
+    if (waitingEl) waitingEl.style.display = 'block';
+    if (!document.getElementById('restart-count')) return;
+  }
+  // Log it
+  const logArea = document.getElementById('log-area');
+  if (logArea) {
+    logArea.innerHTML += `<div class="log-entry" style="color:#f39c12;">✅ ${voterName} 准备好了 (${votedCount}/${totalPlayers})</div>`;
+  }
 });
 
 // Remove game-over overlay on restart
 socket.on('game_restarted', () => {
   const overlay = document.getElementById('game-over-overlay');
   if (overlay) overlay.remove();
-  // Clear log for new game
-  document.getElementById('log-area').innerHTML = '<div class="log-entry">🔄 新一局开始...</div>';
+  document.getElementById('log-area').innerHTML = '<div class="log-entry">🔄 新一局开始！</div>';
 });
 
 // ================================================================
