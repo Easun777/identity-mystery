@@ -812,9 +812,10 @@ function resolveTrade(playerIdx, targetIdx) {
 
 function resolveRumor() {
   const { playerCount, hands } = gameState;
-  const newCards = Array.from({length: playerCount}, () => null);
   
-  // For each player, try to draw from the previous player (上家)
+  // Track how many copies of each card type are "just acquired" and protected per player
+  const protected = Array.from({ length: playerCount }, () => new Map());
+
   for (let i = 0; i < playerCount; i++) {
     const upperIdx = (i - 1 + playerCount) % playerCount;
     const upperHand = hands[upperIdx];
@@ -824,30 +825,32 @@ function resolveRumor() {
       continue;
     }
     
-    // Filter out rumor-protected cards (just drawn by upper from their upper)
-    const availableCards = upperHand.filter(c => 
-      !gameState.rumorProtected.has(`${upperIdx}_${c}`)
-    );
-    
-    if (availableCards.length === 0) {
-      // All cards are protected, pick randomly from all (fallback)
-      const pick = upperHand[Math.floor(Math.random() * upperHand.length)];
-      const pickIdx = upperHand.indexOf(pick);
-      upperHand.splice(pickIdx, 1);
-      hands[i].push(pick);
-      gameState.rumorProtected.add(`${i}_${pick}`);
-      addLog(`💬 ${gameState.names[i]} 从上家抽到了一张牌。`);
-    } else {
-      const pick = availableCards[Math.floor(Math.random() * availableCards.length)];
-      const pickIdx = upperHand.indexOf(pick);
-      upperHand.splice(pickIdx, 1);
-      hands[i].push(pick);
-      gameState.rumorProtected.add(`${i}_${pick}`);
-      addLog(`💬 ${gameState.names[i]} 从上家抽到了一张牌。`);
+    // Build available cards: exclude only the exact number of protected copies
+    const prot = protected[upperIdx];
+    const available = [];
+    const consumed = new Map();
+    for (const c of upperHand) {
+      const protectedCount = prot.get(c) || 0;
+      const alreadyExcluded = consumed.get(c) || 0;
+      if (alreadyExcluded < protectedCount) {
+        consumed.set(c, alreadyExcluded + 1);
+      } else {
+        available.push(c);
+      }
     }
+
+    const pool = available.length > 0 ? available : upperHand;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+
+    const pickIdx = upperHand.indexOf(pick);
+    upperHand.splice(pickIdx, 1);
+    hands[i].push(pick);
+
+    // Mark this card as protected for the next player (下家)
+    protected[i].set(pick, (protected[i].get(pick) || 0) + 1);
+    addLog(`💬 ${gameState.names[i]} 从上家抽到了一张牌。`);
   }
-  
-  gameState.rumorProtected.clear();
+
   addLog('💬 谣言平息，所有人的手牌都发生了变化...');
 }
 

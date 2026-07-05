@@ -122,7 +122,6 @@ function initGameState(room) {
     gameOver: false,
     winner: null,
     log: [],
-    rumorProtected: new Set(),
     aiKnowledge: Array.from({length: playerCount}, () => ({})),
     waitingForTarget: null,   // { playerIdx, cardId }
     waitingForTrade: null,    // { playerIdx, targetIdx, cardA }
@@ -318,6 +317,9 @@ function resolveRumor(room) {
   const gs = room.gameState;
   const { playerCount, hands } = gs;
 
+  // Track how many copies of each card type are "just acquired" and protected per player
+  const protected = Array.from({ length: playerCount }, () => new Map());
+
   for (let i = 0; i < playerCount; i++) {
     const upperIdx = (i - 1 + playerCount) % playerCount;
     const upperHand = hands[upperIdx];
@@ -326,22 +328,34 @@ function resolveRumor(room) {
       continue;
     }
 
-    const availableCards = upperHand.filter(c =>
-      !gs.rumorProtected.has(`${upperIdx}_${c}`)
-    );
-    
-    const pick = (availableCards.length > 0 ? availableCards : upperHand)[
-      Math.floor(Math.random() * (availableCards.length > 0 ? availableCards.length : upperHand.length))
-    ];
-    
+    // Build available cards: exclude only the exact number of protected copies
+    const prot = protected[upperIdx];
+    const available = [];
+    const consumed = new Map(); // track how many we've excluded already
+    for (const c of upperHand) {
+      const protectedCount = prot.get(c) || 0;
+      const alreadyExcluded = consumed.get(c) || 0;
+      if (alreadyExcluded < protectedCount) {
+        // This specific copy is protected, skip it
+        consumed.set(c, alreadyExcluded + 1);
+      } else {
+        available.push(c);
+      }
+    }
+
+    // Pick from available, or fall back to all upperHand cards
+    const pool = available.length > 0 ? available : upperHand;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+
     const pickIdx = upperHand.indexOf(pick);
     upperHand.splice(pickIdx, 1);
     hands[i].push(pick);
-    gs.rumorProtected.add(`${i}_${pick}`);
+
+    // Mark this card as protected for the next player (下家)
+    protected[i].set(pick, (protected[i].get(pick) || 0) + 1);
     addLog(gs, `💬 ${gs.names[i]} 从上家抽到了一张牌。`);
   }
 
-  gs.rumorProtected.clear();
   addLog(gs, '💬 谣言平息，所有人的手牌都发生了变化...');
 }
 
