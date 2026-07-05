@@ -655,6 +655,7 @@ socket.on('game_over', (data) => {
 
   const overlay = document.createElement('div');
   overlay.className = 'game-over-overlay';
+  overlay.id = 'game-over-overlay';
   overlay.innerHTML = `
     <div class="game-over-box">
       <div class="result-icon">${data.reason === 'criminal' ? '🦹' : '🎉'}</div>
@@ -663,10 +664,21 @@ socket.on('game_over', (data) => {
         <p>${data.detail}</p>
         <div style="margin-top:12px;font-size:0.85rem;color:#b8956a;">${revealHtml}</div>
       </div>
-      <button class="btn btn-primary" onclick="location.reload()">🔄 再来一局</button>
+      <button class="btn btn-primary" id="btn-restart">🔄 再来一局</button>
     </div>
   `;
   document.body.appendChild(overlay);
+  document.getElementById('btn-restart').onclick = () => {
+    socket.emit('restart_game');
+  };
+});
+
+// Remove game-over overlay on restart
+socket.on('game_restarted', () => {
+  const overlay = document.getElementById('game-over-overlay');
+  if (overlay) overlay.remove();
+  // Clear log for new game
+  document.getElementById('log-area').innerHTML = '<div class="log-entry">🔄 新一局开始...</div>';
 });
 
 // ================================================================

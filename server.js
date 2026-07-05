@@ -726,6 +726,41 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Restart game with same players
+  socket.on('restart_game', () => {
+    const code = socket.data.roomCode;
+    const room = rooms[code];
+    if (!room || !room.gameState || !room.gameState.gameOver) return;
+
+    // Clean up old AI timers
+    for (const t of room.aiTimers) clearTimeout(t);
+    room.aiTimers = [];
+
+    // Create fresh game state
+    room.gameState = initGameState(room);
+    room.gameState._roomCode = code;
+
+    const gs = room.gameState;
+    const firstFinder = gs.currentPlayer;
+
+    addLog(gs, `🔄 新一局开始！${room.players.length} 名玩家，每人 4 张手牌。`);
+
+    if (firstFinder === 0) {
+      addLog(gs, '🔍 你拿到了「第一发现者」，必须第一个出牌！', 'important');
+    } else {
+      addLog(gs, `🔍 ${gs.names[firstFinder]} 拿到了「第一发现者」，将首先出牌。`);
+    }
+
+    sendGameState(code);
+
+    // Also tell clients to remove game-over overlay
+    broadcastAll(code, 'game_restarted', {});
+
+    if (room.players[firstFinder].isAI) {
+      setTimeout(() => executePlay(room, firstFinder, 'first_finder'), 1500);
+    }
+  });
+
   // Start game
   socket.on('start_game', (callback) => {
     try {
