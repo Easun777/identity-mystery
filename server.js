@@ -5,7 +5,11 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { path: '/api/io' });
+const io = new Server(server, {
+  path: '/api/io',
+  transports: ['polling'],
+  cors: { origin: '*' },
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 

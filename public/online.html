@@ -231,7 +231,7 @@ body {
 // ================================================================
 // SOCKET CONNECTION
 // ================================================================
-const socket = io({ path: '/api/io' });
+const socket = io({ path: '/api/io', transports: ['polling'] });
 let myRoomCode = null;
 let myPlayerIdx = -1;
 let isHost = false;
