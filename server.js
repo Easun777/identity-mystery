@@ -6,9 +6,9 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  transports: ['polling', 'websocket'],  // polling first for Render proxy compatibility
+  path: '/ws',
+  transports: ['polling'],
   cors: { origin: '*' },
-  allowEIO3: true,
 });
 
 // Bypass localtunnel verification page
