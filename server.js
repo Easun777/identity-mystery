@@ -450,8 +450,8 @@ function executePlay(room, playerIdx, cardId, targetIdx = -1) {
     case 'witness':
       resolveWitness(room, playerIdx, targetIdx);
       if (gs._waitingWitnessAck) {
-        // Don't advance turn - wait for human to acknowledge
-        gs._witnessPlayerIdx = playerIdx;
+        // Pause game until human clicks "我记住了"
+        gs._pendingEffect = true;
         return;
       }
       break;
@@ -476,7 +476,7 @@ function executePlay(room, playerIdx, cardId, targetIdx = -1) {
       break;
   }
 
-  if (!gs.gameOver) {
+  if (!gs.gameOver && !gs._pendingEffect) {
     advanceTurn(room);
   }
 
@@ -1008,6 +1008,7 @@ io.on('connection', (socket) => {
     if (!gs._waitingWitnessAck) return;
 
     gs._waitingWitnessAck = false;
+    gs._pendingEffect = false;
     sendGameState(code);
     advanceTurn(room);
   });
