@@ -734,50 +734,49 @@ io.on('connection', (socket) => {
 
   // Start game
   socket.on('start_game', (callback) => {
-    const code = socket.data.roomCode;
-    const room = rooms[code];
-    if (!room) return callback({ success: false, error: '房间不存在' });
-    if (room.host !== socket.id) return callback({ success: false, error: '只有房主可以开始游戏' });
-    if (room.players.length < 3) return callback({ success: false, error: '至少需要3名玩家' });
+    try {
+      const code = socket.data.roomCode;
+      const room = rooms[code];
+      if (!room) return callback({ success: false, error: '房间不存在' });
+      if (room.host !== socket.id) return callback({ success: false, error: '只有房主可以开始游戏' });
+      if (room.players.length < 3) return callback({ success: false, error: '至少需要3名玩家' });
 
-    // Fill remaining slots with AI (up to 8)
-    const aiNames = ['机器人A', '机器人B', '机器人C', '机器人D', '机器人E'];
-    let aiIdx = 0;
-    while (room.players.length < 3) {
-      room.players.push({
-        id: `ai_${room.code}_${aiIdx}`,
-        name: aiNames[aiIdx],
-        socketId: null,
-        isAI: true,
-        isHost: false,
-      });
-      aiIdx++;
-    }
+      // Fill remaining slots with AI
+      const aiNames = ['机器人A', '机器人B', '机器人C', '机器人D', '机器人E'];
+      let aiIdx = 0;
+      while (room.players.length < 3) {
+        room.players.push({
+          id: `ai_${code}_${aiIdx}`,
+          name: aiNames[aiIdx], socketId: null, isAI: true, isHost: false,
+        });
+        aiIdx++;
+      }
 
-    room.gameStarted = true;
-    room.gameState = initGameState(room);
-    room.gameState._roomCode = code;
+      room.gameStarted = true;
+      room.gameState = initGameState(room);
+      room.gameState._roomCode = code;
 
-    addLog(room.gameState, `🃏 游戏开始！${room.players.length} 名玩家，每人 4 张手牌。`);
+      const gs = room.gameState;
+      const firstFinder = gs.currentPlayer;
+      
+      addLog(gs, `🃏 游戏开始！${room.players.length} 名玩家，每人 4 张手牌。`);
+      console.log(`🎮 房间 ${code} 开始，第一发现者: ${gs.names[firstFinder]}`);
+      
+      if (firstFinder === 0) {
+        addLog(gs, '🔍 你拿到了「第一发现者」，必须第一个出牌！', 'important');
+      } else {
+        addLog(gs, `🔍 ${gs.names[firstFinder]} 拿到了「第一发现者」，将首先出牌。`);
+      }
 
-    const gs = room.gameState;
-    const firstFinder = gs.currentPlayer;
-    console.log(`🎮 房间 ${code} 游戏开始，第一发现者: ${gs.names[firstFinder]}`);
-    
-    if (firstFinder === 0) {
-      addLog(gs, `🔍 你拿到了「第一发现者」，必须第一个出牌！`, 'important');
-    } else {
-      addLog(gs, `🔍 ${gs.names[firstFinder]} 拿到了「第一发现者」，将首先出牌。`);
-    }
+      sendGameState(code);
+      callback({ success: true });
 
-    sendGameState(code);
-    callback({ success: true });
-
-    // If AI has first_finder, play it
-    if (room.players[firstFinder].isAI) {
-      setTimeout(() => {
-        executePlay(room, firstFinder, 'first_finder');
-      }, 1500);
+      if (room.players[firstFinder].isAI) {
+        setTimeout(() => executePlay(room, firstFinder, 'first_finder'), 1500);
+      }
+    } catch (err) {
+      console.error('start_game error:', err);
+      callback({ success: false, error: '服务器错误：' + err.message });
     }
   });
 
