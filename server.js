@@ -4,16 +4,16 @@ const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, {
-  path: '/ws',
   transports: ['polling'],
   cors: { origin: '*' },
 });
 
-// Bypass localtunnel verification page
+// Don't let Express handle Socket.io paths
 app.use((req, res, next) => {
-  res.setHeader('bypass-tunnel-reminder', 'true');
+  if (req.url.startsWith('/socket.io/')) return next('route');
   next();
 });
 
