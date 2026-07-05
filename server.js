@@ -4,18 +4,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
-app.set('trust proxy', 1);
 const server = http.createServer(app);
-const io = new Server(server, {
-  transports: ['polling'],
-  cors: { origin: '*' },
-});
-
-// Don't let Express handle Socket.io paths
-app.use((req, res, next) => {
-  if (req.url.startsWith('/socket.io/')) return next('route');
-  next();
-});
+const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
