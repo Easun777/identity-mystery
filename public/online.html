@@ -400,7 +400,7 @@ function renderOpponents(state) {
   for (const opp of state.opponents) {
     const isActive = opp.idx === state.currentPlayer && !state.gameOver;
     html += `<div class="player-panel${isActive ? ' active-turn' : ''}">
-      <div class="player-name">${opp.name}${opp.isAI ? ' 🤖' : ''}</div>
+      <div class="player-name">${opp.name}${opp.isAI ? ' 🤖' : ''} <span style="color:#c9a96e;font-size:0.75rem;">${opp.score || 0}分</span></div>
       <div class="card-count">🂠 ${opp.cardCount} 张</div>
       <div class="opponent-cards">
         ${Array.from({length: opp.cardCount}, () => '<div class="mini-card"></div>').join('')}
@@ -413,7 +413,7 @@ function renderOpponents(state) {
 function renderMyHand(state) {
   const container = document.getElementById('cards-hand');
   const isMyTurn = state.currentPlayer === state.playerIdx && !state.gameOver;
-  document.getElementById('hand-count').textContent = `${state.myHand.length} 张`;
+  document.getElementById('hand-count').textContent = `${state.myHand.length} 张 | 🏆 ${state.myScore || 0} 分`;
   
   let html = '';
   for (const cardId of state.myHand) {

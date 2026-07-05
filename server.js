@@ -208,15 +208,18 @@ function sendGameState(roomCode) {
       turnNumber: gs.turnNumber,
       gameOver: gs.gameOver,
       winner: gs.winner,
+      myScore: (room.scores && room.scores[p.id]) || 0,
     };
 
     for (let j = 0; j < gs.playerCount; j++) {
       if (j === i) continue;
+      const opp = room.players[j];
       visibleState.opponents.push({
         idx: j,
         name: gs.names[j],
         cardCount: gs.hands[j].length,
-        isAI: room.players[j].isAI,
+        isAI: opp.isAI,
+        score: (room.scores && room.scores[opp.id]) || 0,
       });
     }
 
