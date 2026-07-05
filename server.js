@@ -99,8 +99,10 @@ function initGameState(room) {
     const idx = pool.indexOf(m);
     if (idx >= 0) pool.splice(idx, 1);
   }
-  shuffle(pool);
-  const deck = shuffle([...mandatory, ...pool.slice(0, remaining)]);
+  // 共犯不在随机池中，数量严格由人数决定
+  const randomPool = pool.filter(c => c !== 'accomplice');
+  shuffle(randomPool);
+  const deck = shuffle([...mandatory, ...randomPool.slice(0, remaining)]);
 
   const hands = [];
   for (let i = 0; i < playerCount; i++) {

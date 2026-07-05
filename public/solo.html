@@ -450,9 +450,10 @@ function initGameState(playerCount) {
     if (idx >= 0) pool.splice(idx, 1);
   }
   
-  // Shuffle pool and take remaining
-  shuffleArray(pool);
-  const deck = [...mandatory, ...pool.slice(0, remaining)];
+  // 共犯不在随机池中，数量严格由人数决定
+  const randomPool = pool.filter(c => c !== 'accomplice');
+  shuffleArray(randomPool);
+  const deck = [...mandatory, ...randomPool.slice(0, remaining)];
   shuffleArray(deck);
   
   // Deal 4 cards each
