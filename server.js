@@ -75,8 +75,9 @@ function createRoom() {
     players: [],       // { id, name, socketId, isAI, hand: [...] }
     maxHuman: 8,
     gameStarted: false,
-    gameState: null,   // full server-side game state
+    gameState: null,
     aiTimers: [],
+    scores: {},        // { playerId: number } cumulative across games
     createdAt: Date.now(),
   };
   return code;
@@ -125,8 +126,9 @@ function initGameState(room) {
     winner: null,
     log: [],
     aiKnowledge: Array.from({length: playerCount}, () => ({})),
-    waitingForTarget: null,   // { playerIdx, cardId }
-    waitingForTrade: null,    // { playerIdx, targetIdx, cardA }
+    _criminalSide: new Set(),  // tracks which players are on criminal team
+    waitingForTarget: null,
+    waitingForTrade: null,
     waitingForIntel: false,
   };
 }
@@ -384,6 +386,11 @@ function gameOver(room, reason, winningPlayer) {
   const gs = room.gameState;
   gs.gameOver = true;
   
+  // Criminal side: player with 犯人 + players who played 共犯
+  for (let i = 0; i < gs.playerCount; i++) {
+    if (gs.hands[i].includes('criminal')) gs._criminalSide.add(i);
+  }
+
   let detail = '';
   if (reason === 'criminal') {
     detail = `${gs.names[winningPlayer]} 打出了犯人牌，犯人阵营获胜！`;
@@ -391,6 +398,47 @@ function gameOver(room, reason, winningPlayer) {
     detail = '侦探成功指控了犯人，非犯人阵营获胜！';
   } else if (reason === 'divine_dog') {
     detail = '神犬弃掉了犯人牌，非犯人阵营获胜！';
+  }
+
+  // ---- Calculate Scores ----
+  if (!room.scores) room.scores = {};
+  const scoreDetail = []; // [{ name, change, reason }]
+  const isCriminalWin = reason === 'criminal';
+
+  if (isCriminalWin) {
+    // 犯人阵营获胜
+    for (let i = 0; i < gs.playerCount; i++) {
+      const id = room.players[i].id;
+      if (i === winningPlayer) {
+        // 打出犯人的得5分
+        room.scores[id] = (room.scores[id] || 0) + 5;
+        scoreDetail.push({ name: gs.names[i], change: 5, reason: '打出犯人' });
+      } else if (gs._criminalSide.has(i)) {
+        // 共犯得3分
+        room.scores[id] = (room.scores[id] || 0) + 3;
+        scoreDetail.push({ name: gs.names[i], change: 3, reason: '共犯' });
+      } else {
+        scoreDetail.push({ name: gs.names[i], change: 0, reason: '非犯人阵营' });
+      }
+    }
+  } else {
+    // 非犯人阵营获胜
+    for (let i = 0; i < gs.playerCount; i++) {
+      const id = room.players[i].id;
+      if (gs._criminalSide.has(i)) {
+        // 犯人阵营不得分
+        scoreDetail.push({ name: gs.names[i], change: 0, reason: '犯人阵营' });
+      } else if (i === winningPlayer) {
+        // 打出侦探/神犬的得分
+        const pts = reason === 'detective' ? 3 : 2;
+        room.scores[id] = (room.scores[id] || 0) + pts;
+        scoreDetail.push({ name: gs.names[i], change: pts, reason: reason === 'detective' ? '打出侦探' : '打出神犬' });
+      } else {
+        // 其余非犯人阵营得1分
+        room.scores[id] = (room.scores[id] || 0) + 1;
+        scoreDetail.push({ name: gs.names[i], change: 1, reason: '非犯人阵营' });
+      }
+    }
   }
 
   gs.winner = { reason, detail, winningPlayer };
@@ -404,11 +452,19 @@ function gameOver(room, reason, winningPlayer) {
     });
   }
 
+  // Build score summary
+  const scoreSummary = room.players.map(p => ({
+    name: p.name,
+    total: room.scores[p.id] || 0,
+  }));
+
   broadcastAll(room.code, 'game_over', {
     reason,
     detail,
     allHands,
-    winnerTeam: reason === 'criminal' ? '犯人阵营' : '非犯人阵营（侦探方）',
+    winnerTeam: isCriminalWin ? '犯人阵营' : '非犯人阵营（侦探方）',
+    scoreDetail,
+    scoreSummary,
   });
 
   // Clean up AI timers
@@ -443,6 +499,7 @@ function executePlay(room, playerIdx, cardId, targetIdx = -1) {
       return;
     case 'accomplice':
       addLog(gs, `🕵️ ${gs.names[playerIdx]} 亮明了犯人阵营身份！`, 'danger');
+      gs._criminalSide.add(playerIdx);
       break;
     case 'detective':
       resolveDetective(room, playerIdx, targetIdx);

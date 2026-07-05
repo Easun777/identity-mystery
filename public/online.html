@@ -682,22 +682,49 @@ socket.on('error_msg', (msg) => {
 
 socket.on('game_over', (data) => {
   removeModal();
+  
+  // Reveal hands
   let revealHtml = '';
   for (const h of data.allHands) {
     const cardsStr = h.cards.map(c => getCardDef(c).name + getCardDef(c).icon).join(' ');
     revealHtml += `<div>${h.name}：${cardsStr || '（无）'}</div>`;
   }
 
+  // Score details for this round
+  let scoreDetailHtml = '';
+  if (data.scoreDetail) {
+    scoreDetailHtml = data.scoreDetail.map(s => 
+      `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <span>${s.name}</span>
+        <span style="color:${s.change > 0 ? '#2ecc71' : '#888'};">${s.change > 0 ? '+' + s.change : '0'} <span style="font-size:0.7rem;">(${s.reason})</span></span>
+      </div>`
+    ).join('');
+  }
+
+  // Cumulative scores
+  let cumulativeHtml = '';
+  if (data.scoreSummary) {
+    const sorted = [...data.scoreSummary].sort((a, b) => b.total - a.total);
+    cumulativeHtml = sorted.map((s, i) =>
+      `<div style="display:flex;justify-content:space-between;padding:3px 6px;${i === 0 ? 'background:rgba(201,169,110,0.15);border-radius:6px;' : ''}">
+        <span>${i === 0 ? '👑 ' : ''}${s.name}</span>
+        <span style="font-weight:bold;color:#c9a96e;">${s.total} 分</span>
+      </div>`
+    ).join('');
+  }
+
   const overlay = document.createElement('div');
   overlay.className = 'game-over-overlay';
   overlay.id = 'game-over-overlay';
   overlay.innerHTML = `
-    <div class="game-over-box">
+    <div class="game-over-box" style="max-width:520px;">
       <div class="result-icon">${data.reason === 'criminal' ? '🦹' : '🎉'}</div>
       <h2>${data.winnerTeam}获胜！</h2>
       <div class="result-detail">
         <p>${data.detail}</p>
         <div style="margin-top:12px;font-size:0.85rem;color:#b8956a;">${revealHtml}</div>
+        ${scoreDetailHtml ? `<div style="margin-top:12px;text-align:left;font-size:0.85rem;"><strong>📊 本局得分</strong>${scoreDetailHtml}</div>` : ''}
+        ${cumulativeHtml ? `<div style="margin-top:10px;text-align:left;font-size:0.85rem;"><strong>🏆 累计积分</strong>${cumulativeHtml}</div>` : ''}
       </div>
       <button class="btn btn-primary" id="btn-restart" onclick="voteRestart()">🔄 再来一局</button>
       <div id="restart-waiting" style="display:none;margin-top:12px;color:#f39c12;font-size:0.95rem;">
