@@ -876,6 +876,10 @@ io.on('connection', (socket) => {
 
     // Intel exchange: ask all players to select a card
     if (cardId === 'intel_exchange') {
+      // Remove the intel_exchange card from initiator's hand first
+      const cardIdx = gs.hands[playerIdx].indexOf('intel_exchange');
+      if (cardIdx >= 0) gs.hands[playerIdx].splice(cardIdx, 1);
+      
       gs.waitingForIntel = true;
       gs._intelCards = Array.from({ length: gs.playerCount }, () => null);
       gs._intelResponded = new Set();
@@ -891,6 +895,23 @@ io.on('connection', (socket) => {
           gs._intelCards[i] = aiChooseIntelCard(gs.hands[i]);
           gs._intelResponded.add(i);
         }
+      }
+      
+      // Check if all already responded (only AI players)
+      let allResponded = true;
+      for (let i = 0; i < gs.playerCount; i++) {
+        if (!room.players[i].isAI && gs.hands[i].length > 0 && !gs._intelResponded.has(i)) {
+          allResponded = false; break;
+        }
+      }
+      if (allResponded) {
+        gs.waitingForIntel = false;
+        gs._intelResponded = null;
+        gs._lastImportant = true;
+        resolveIntelExchange(room, gs._intelCards);
+        gs._intelCards = null;
+        sendGameState(code);
+        if (!gs.gameOver) advanceTurn(room);
       }
       return;
     }
@@ -916,21 +937,52 @@ io.on('connection', (socket) => {
     const targets = getValidTargets(gs, playerIdx, cardId);
     if (!targets.includes(targetIdx)) return;
 
-    // For trade, need to select cards
+    // For trade, need to select cards (after removing trade card from hand)
     if (cardId === 'trade') {
+      // Remove trade card from initiator's hand first
+      const tradeIdx = gs.hands[playerIdx].indexOf('trade');
+      if (tradeIdx >= 0) gs.hands[playerIdx].splice(tradeIdx, 1);
+
       gs.waitingForTrade = { playerIdx, targetIdx };
-      gs._tradeTargetIdx = targetIdx;
       gs._tradePlayerIdx = playerIdx;
-      
-      // Ask both players to select a card
-      io.to(socket.id).emit('select_trade_card', {
-        targetName: gs.names[targetIdx],
-        myCards: gs.hands[playerIdx],
-      });
-      io.to(room.players[targetIdx].socketId).emit('select_trade_card', {
-        targetName: gs.names[playerIdx],
-        myCards: gs.hands[targetIdx],
-      });
+      gs._tradeTargetIdx = targetIdx;
+
+      const initiatorPlayer = room.players[playerIdx];
+      const targetPlayer = room.players[targetIdx];
+
+      // Ask human players to select
+      if (!initiatorPlayer.isAI) {
+        io.to(initiatorPlayer.socketId).emit('select_trade_card', {
+          targetName: gs.names[targetIdx],
+          myCards: gs.hands[playerIdx],
+        });
+      } else {
+        // AI initiator auto-selects
+        gs._tradeCardA = aiChooseIntelCard(gs.hands[playerIdx]);
+        gs._tradePlayerAReady = true;
+      }
+
+      if (!targetPlayer.isAI) {
+        io.to(targetPlayer.socketId).emit('select_trade_card', {
+          targetName: gs.names[playerIdx],
+          myCards: gs.hands[targetIdx],
+        });
+      } else {
+        // AI target auto-selects
+        gs._tradeCardB = aiChooseIntelCard(gs.hands[targetIdx]);
+        gs._tradePlayerBReady = true;
+      }
+
+      // If both ready (both AI), resolve immediately
+      if (gs._tradePlayerAReady && gs._tradePlayerBReady) {
+        gs.waitingForTrade = null;
+        gs._tradePlayerAReady = false;
+        gs._tradePlayerBReady = false;
+        resolveTrade(room, playerIdx, targetIdx, gs._tradeCardA, gs._tradeCardB);
+        gs._tradeCardA = null; gs._tradeCardB = null;
+        sendGameState(code);
+        if (!gs.gameOver) advanceTurn(room);
+      }
       return;
     }
 
@@ -983,7 +1035,10 @@ io.on('connection', (socket) => {
       gs.waitingForTrade = null;
       gs._tradePlayerAReady = false;
       gs._tradePlayerBReady = false;
-      executePlay(room, wt.playerIdx, 'trade', wt.targetIdx);
+      resolveTrade(room, wt.playerIdx, wt.targetIdx, gs._tradeCardA, gs._tradeCardB);
+      gs._tradeCardA = null; gs._tradeCardB = null;
+      sendGameState(code);
+      if (!gs.gameOver) advanceTurn(room);
     }
   });
 
@@ -1012,11 +1067,12 @@ io.on('connection', (socket) => {
     }
 
     if (allResponded) {
-      const initiator = gs._intelInitiator || gs.currentPlayer;
       gs.waitingForIntel = false;
       gs._intelResponded = null;
-      gs._lastImportant = true;
-      executePlay(room, initiator, 'intel_exchange');
+      resolveIntelExchange(room, gs._intelCards);
+      gs._intelCards = null;
+      sendGameState(code);
+      if (!gs.gameOver) advanceTurn(room);
     }
   });
 
