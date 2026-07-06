@@ -553,6 +553,13 @@ function executePlay(room, playerIdx, cardId, targetIdx = -1) {
     advanceTurn(room);
   }
 
+  // Card count sanity check
+  const totalCards = gs.hands.reduce((sum, h) => sum + h.length, 0) + gs.playedCards.length;
+  const expected = gs.playerCount * 4;
+  if (totalCards !== expected) {
+    console.error(`⚠️ CARD LEAK! Total=${totalCards}, Expected=${expected}, Hands=${JSON.stringify(gs.hands.map(h => h.length))}, Played=${gs.playedCards.length}, LastCard=${cardId}, Player=${playerIdx}`);
+  }
+
   sendGameState(room.code);
 }
 
