@@ -10,8 +10,8 @@ body {
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
   background: radial-gradient(ellipse at center, #2d5a27 0%, #1a3a1a 70%);
   color: #f0e6d3; min-height: 100vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 24px;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 40px 20px; gap: 24px;
 }
 h1 { font-size: 3rem; color: #c9a96e; letter-spacing: 4px; text-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
 .btn {
@@ -23,6 +23,26 @@ h1 { font-size: 3rem; color: #c9a96e; letter-spacing: 4px; text-shadow: 2px 2px 
 .btn-online:hover { background: #d4b87a; transform: translateY(-3px); box-shadow: 0 8px 24px rgba(201,169,110,0.4); }
 .btn-solo { background: rgba(255,255,255,0.1); color: #c9a96e; border: 2px solid #c9a96e; }
 .btn-solo:hover { background: rgba(255,255,255,0.2); }
+
+.rules-panel {
+  background: rgba(0,0,0,0.35); border: 1px solid rgba(201,169,110,0.3);
+  border-radius: 16px; padding: 24px 28px; max-width: 600px; width: 90%;
+  backdrop-filter: blur(8px); margin-top: 16px;
+}
+.rules-panel h2 { color: #c9a96e; text-align: center; margin-bottom: 16px; font-size: 1.2rem; }
+.rules-panel .card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px; font-size: 0.8rem; line-height: 1.6;
+}
+.rules-panel .card-item {
+  padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 8px;
+}
+.rules-panel .card-item strong { color: #c9a96e; }
+.rules-panel .flow {
+  text-align: center; font-size: 0.85rem; color: #b8956a; margin-top: 14px;
+  padding: 10px; background: rgba(201,169,110,0.08); border-radius: 10px;
+}
+.rules-panel .flow strong { color: #f39c12; }
 </style>
 </head>
 <body>
@@ -32,8 +52,26 @@ h1 { font-size: 3rem; color: #c9a96e; letter-spacing: 4px; text-shadow: 2px 2px 
   <a class="btn btn-online" href="/online.html">🌐 联机对战</a>
   <a class="btn btn-solo" href="/solo.html">🤖 单机练习</a>
 </div>
-<p style="margin-top:20px;">
-  <a href="https://github.com/Easun777/identity-mystery#%E6%B8%B8%E6%88%8F%E8%A7%84%E5%88%99" target="_blank" style="color:#b8956a;font-size:0.9rem;text-decoration:none;">📖 游戏说明书</a>
-</p>
+
+<div class="rules-panel">
+  <h2>📖 游戏规则</h2>
+  <div class="card-grid">
+    <div class="card-item">🔍 <strong>第一发现者</strong> — 必须第一个打出</div>
+    <div class="card-item">🦹 <strong>犯人</strong> — 剩最后一张时打出即胜</div>
+    <div class="card-item">🕵️ <strong>共犯</strong> — 亮明犯人阵营身份</div>
+    <div class="card-item">🔎 <strong>侦探</strong> — 指控一人，有犯人无不在场证明即胜</div>
+    <div class="card-item">🛡️ <strong>不在场证明</strong> — 在手牌中免疫侦探指控</div>
+    <div class="card-item">👁️ <strong>目击者</strong> — 查看一名玩家所有手牌</div>
+    <div class="card-item">💬 <strong>谣言</strong> — 全体从上家随机抽1张</div>
+    <div class="card-item">🤝 <strong>交易</strong> — 与一名玩家秘密交换1张手牌</div>
+    <div class="card-item">📨 <strong>情报交换</strong> — 每人选1张传给下家</div>
+    <div class="card-item">🧑 <strong>普通人</strong> — 无效果，消耗手牌</div>
+    <div class="card-item">🐕 <strong>神犬</strong> — 弃掉一人1张牌，弃掉犯人即胜</div>
+  </div>
+  <div class="flow">
+    🎯 <strong>3-8人</strong> · 每人4张牌 · 轮流打出1张 · <strong>犯人打出</strong>或<strong>被抓</strong>即结束
+    <br>📊 犯人+5分 · 共犯+3分 · 侦探指认+3分 · 神犬抓+2分 · 非犯人阵营+1分
+  </div>
+</div>
 </body>
 </html>
