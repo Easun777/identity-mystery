@@ -1234,7 +1234,7 @@ function aiChooseIntelCard(hand) {
 // ================================================================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🃏 身份谜局 联机服务器运行在 http://localhost:${PORT}`);
+  console.log(`🃏 犯人在跳舞 联机服务器运行在 http://localhost:${PORT}`);
   console.log(`   单机版: http://localhost:${PORT}/index.html`);
   console.log(`   联机版: http://localhost:${PORT}/online.html`);
 });

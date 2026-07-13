@@ -1,7 +1,7 @@
 {
   "name": "identity-mystery",
   "version": "2.0.0",
-  "description": "身份谜局 - 联机卡牌推理桌游",
+  "description": "犯人在跳舞 - 联机卡牌推理桌游",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
