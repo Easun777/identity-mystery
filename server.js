@@ -1046,6 +1046,14 @@ io.on('connection', (socket) => {
       const tradeIdx = gs.hands[playerIdx].indexOf('trade');
       if (tradeIdx >= 0) gs.hands[playerIdx].splice(tradeIdx, 1);
 
+      // Edge case: no cards left to swap, trade acts like civilian
+      if (gs.hands[playerIdx].length === 0 || gs.hands[targetIdx].length === 0) {
+        addLog(gs, '🤝 没有手牌可以交换，交易无事发生。');
+        sendGameState(code);
+        advanceTurn(room);
+        return;
+      }
+
       gs.waitingForTrade = { playerIdx, targetIdx };
       gs._tradePlayerIdx = playerIdx;
       gs._tradeTargetIdx = targetIdx;
